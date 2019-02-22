@@ -43,10 +43,6 @@ public class PushNotification implements IPushNotification {
     };
 
     public static IPushNotification get(Context context, Bundle bundle) {
-        if (verifyNotificationBundle(bundle) == false) {
-            return null;
-        }
-
         Context appContext = context.getApplicationContext();
         if (appContext instanceof INotificationsApplication) {
             return ((INotificationsApplication) appContext).getPushNotification(context, bundle, AppLifecycleFacadeHolder.get(), new AppLaunchHelper());
@@ -60,14 +56,6 @@ public class PushNotification implements IPushNotification {
         mAppLaunchHelper = appLaunchHelper;
         mJsIOHelper = JsIOHelper;
         mNotificationProps = createProps(bundle);
-    }
-
-    private static boolean verifyNotificationBundle(Bundle bundle) {
-        if (bundle.getString("google.message_id") != null) {
-            return true;
-        }
-
-        return false;
     }
 
     @Override
@@ -104,6 +92,7 @@ public class PushNotification implements IPushNotification {
     protected void digestNotification() {
         if (!mAppLifecycleFacade.isReactInitialized()) {
             setAsInitialNotification();
+            launchOrResumeApp();
             return;
         }
 
@@ -133,6 +122,10 @@ public class PushNotification implements IPushNotification {
 
     protected void dispatchUponVisibility() {
         mAppLifecycleFacade.addVisibilityListener(getIntermediateAppVisibilityListener());
+
+        // Make the app visible so that we'll dispatch the notification opening when visibility changes to 'true' (see
+        // above listener registration).
+        launchOrResumeApp();
     }
 
     protected AppVisibilityListener getIntermediateAppVisibilityListener() {
@@ -203,5 +196,10 @@ public class PushNotification implements IPushNotification {
 
     private void notifyOpenedToJS() {
         mJsIOHelper.sendEventToJS(NOTIFICATION_OPENED_EVENT_NAME, mNotificationProps.asBundle(), mAppLifecycleFacade.getRunningReactContext());
+    }
+
+    protected void launchOrResumeApp() {
+        final Intent intent = mAppLaunchHelper.getLaunchIntent(mContext);
+        mContext.startActivity(intent);
     }
 }
