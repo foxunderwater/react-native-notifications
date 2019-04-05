@@ -43,6 +43,10 @@ public class PushNotification implements IPushNotification {
     };
 
     public static IPushNotification get(Context context, Bundle bundle) {
+        if (verifyNotificationBundle(bundle) == false) {
+            return null;
+        }
+
         Context appContext = context.getApplicationContext();
         if (appContext instanceof INotificationsApplication) {
             return ((INotificationsApplication) appContext).getPushNotification(context, bundle, AppLifecycleFacadeHolder.get(), new AppLaunchHelper());
@@ -58,9 +62,17 @@ public class PushNotification implements IPushNotification {
         mNotificationProps = createProps(bundle);
     }
 
+    private static boolean verifyNotificationBundle(Bundle bundle) {
+        if (bundle.getString("google.message_id") != null) {
+            return true;
+        }
+
+        return false;
+    }
+
     @Override
     public void onReceived() throws InvalidNotificationException {
-        //postNotification(null);
+        postNotification(null);
         notifyReceivedToJS();
         if (mAppLifecycleFacade.isAppVisible()) {
             notifiyReceivedForegroundNotificationToJS();
