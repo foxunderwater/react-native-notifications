@@ -28,6 +28,10 @@ public class PushNotificationProps {
         return mBundle.getString("body");
     }
 
+    public String getMessage() {
+        return mBundle.getString("message");
+    }
+
     public Bundle asBundle() {
         return (Bundle) mBundle.clone();
     }

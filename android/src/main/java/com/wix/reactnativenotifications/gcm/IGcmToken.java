@@ -1,6 +1,6 @@
 package com.wix.reactnativenotifications.gcm;
 
-public interface IFcmToken {
+public interface IGcmToken {
 
     /**
      * Handle an event where we've been notified of a that a fresh token is now available from Google.

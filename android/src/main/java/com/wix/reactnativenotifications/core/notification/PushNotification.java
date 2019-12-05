@@ -43,10 +43,6 @@ public class PushNotification implements IPushNotification {
     };
 
     public static IPushNotification get(Context context, Bundle bundle) {
-        if (verifyNotificationBundle(bundle) == false) {
-            return null;
-        }
-
         Context appContext = context.getApplicationContext();
         if (appContext instanceof INotificationsApplication) {
             return ((INotificationsApplication) appContext).getPushNotification(context, bundle, AppLifecycleFacadeHolder.get(), new AppLaunchHelper());
@@ -60,14 +56,6 @@ public class PushNotification implements IPushNotification {
         mAppLaunchHelper = appLaunchHelper;
         mJsIOHelper = JsIOHelper;
         mNotificationProps = createProps(bundle);
-    }
-
-    private static boolean verifyNotificationBundle(Bundle bundle) {
-        if (bundle.getString("google.message_id") != null) {
-            return true;
-        }
-
-        return false;
     }
 
     @Override
@@ -104,6 +92,7 @@ public class PushNotification implements IPushNotification {
     protected void digestNotification() {
         if (!mAppLifecycleFacade.isReactInitialized()) {
             setAsInitialNotification();
+            launchOrResumeApp();
             return;
         }
 
@@ -133,6 +122,10 @@ public class PushNotification implements IPushNotification {
 
     protected void dispatchUponVisibility() {
         mAppLifecycleFacade.addVisibilityListener(getIntermediateAppVisibilityListener());
+
+        // Make the app visible so that we'll dispatch the notification opening when visibility changes to 'true' (see
+        // above listener registration).
+        launchOrResumeApp();
     }
 
     protected AppVisibilityListener getIntermediateAppVisibilityListener() {
@@ -154,9 +147,11 @@ public class PushNotification implements IPushNotification {
         String CHANNEL_NAME = "Channel Name";
 
         final Notification.Builder notification = new Notification.Builder(mContext)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setPriority(Notification.PRIORITY_MAX)
                 .setContentTitle(mNotificationProps.getTitle())
-                .setContentText(mNotificationProps.getBody())
-                .setSmallIcon(mContext.getApplicationInfo().icon)
+                .setContentText(mNotificationProps.getMessage())
+                .setSmallIcon(mContext.getResources().getIdentifier("ic_notification", "mipmap", mContext.getPackageName()))
                 .setContentIntent(intent)
                 .setDefaults(Notification.DEFAULT_ALL)
                 .setAutoCancel(true);
@@ -164,7 +159,7 @@ public class PushNotification implements IPushNotification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
                                                                   CHANNEL_NAME,
-                                                                  NotificationManager.IMPORTANCE_DEFAULT);
+                                                                  NotificationManager.IMPORTANCE_HIGH);
             final NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.createNotificationChannel(channel);
             notification.setChannelId(CHANNEL_ID);
@@ -203,5 +198,10 @@ public class PushNotification implements IPushNotification {
 
     private void notifyOpenedToJS() {
         mJsIOHelper.sendEventToJS(NOTIFICATION_OPENED_EVENT_NAME, mNotificationProps.asBundle(), mAppLifecycleFacade.getRunningReactContext());
+    }
+
+    protected void launchOrResumeApp() {
+        final Intent intent = mAppLaunchHelper.getLaunchIntent(mContext);
+        mContext.startActivity(intent);
     }
 }
